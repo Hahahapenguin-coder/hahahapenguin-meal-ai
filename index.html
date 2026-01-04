@@ -3,84 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meal Score AI</title>
+    <title>Meal Score AI - ひろさん専用</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans pb-20">
 
     <nav class="bg-white border-b sticky top-0 z-10 px-4 py-3 shadow-sm">
         <div class="max-w-md mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold text-blue-600 flex items-center tracking-tight">
                 <i class="fa-solid fa-utensils mr-2"></i>ひろさんの食事管理
             </h1>
-            <span id="storageInfo" class="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded">データ保存中</span>
         </div>
     </nav>
 
     <main class="max-w-md mx-auto p-4 space-y-6">
         <section class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-            <h2 class="text-lg font-bold mb-4 flex items-center">
-                <i class="fa-solid fa-camera mr-2 text-blue-500"></i>今の食事を採点
+            <h2 class="text-lg font-bold mb-4 flex items-center text-slate-700">
+                <i class="fa-solid fa-clock mr-2 text-blue-500"></i>いつの食事ですか？
             </h2>
             
-            <label id="dropZone" class="block relative group cursor-pointer">
-                <div id="uploadPlaceholder" class="border-2 border-dashed border-slate-200 rounded-2xl py-12 flex flex-col items-center justify-center bg-slate-50 group-hover:bg-blue-50 transition-colors">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-300 mb-2 group-hover:text-blue-400"></i>
+            <div class="flex justify-between gap-2 mb-6" id="mealTypeContainer">
+                <button onclick="selectMeal('朝食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-blue-50 text-blue-600 border-blue-200">朝食</button>
+                <button onclick="selectMeal('昼食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-white text-slate-500">昼食</button>
+                <button onclick="selectMeal('夕食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-white text-slate-500">夕食</button>
+                <button onclick="selectMeal('間食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-white text-slate-500">他</button>
+            </div>
+
+            <label class="block relative group cursor-pointer">
+                <div id="uploadPlaceholder" class="border-2 border-dashed border-slate-200 rounded-2xl py-10 flex flex-col items-center justify-center bg-slate-50 group-hover:bg-blue-50 transition-colors">
+                    <i class="fa-solid fa-camera text-3xl text-slate-300 mb-2"></i>
                     <p class="text-sm text-slate-500 font-medium">写真を撮る・選ぶ</p>
                 </div>
                 <img id="imagePreview" class="hidden w-full h-56 object-cover rounded-2xl shadow-inner border border-slate-100">
                 <input type="file" id="imageInput" accept="image/*" class="hidden">
             </label>
 
-            <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none">
-                AI解析を開始する
+            <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-[0.98] disabled:bg-slate-300">
+                AIで採点・アドバイス
             </button>
         </section>
 
         <div id="loader" class="hidden text-center py-10">
             <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
-            <p class="mt-4 text-slate-600 font-medium tracking-widest text-sm">ひろさんの食事を分析中...</p>
+            <p class="mt-4 text-slate-600 font-medium text-sm">ひろさんの食事を分析中...</p>
         </div>
 
         <section id="resultSection" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div class="bg-white rounded-3xl p-6 shadow-lg border border-blue-100 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4">
-                    <button onclick="closeResult()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="mb-4">
-                    <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase">AI Analysis</span>
+            <div class="bg-white rounded-3xl p-6 shadow-lg border border-blue-100">
+                <div class="flex justify-between items-start mb-4">
+                    <span id="resultLabel" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase"></span>
+                    <button onclick="closeResult()" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div id="aiResponse" class="prose prose-slate text-slate-700 text-sm leading-relaxed whitespace-pre-wrap"></div>
             </div>
         </section>
 
-        <section>
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-slate-800 tracking-tight">食事の履歴</h3>
-                <button onclick="clearHistory()" class="text-[10px] text-slate-400 hover:text-red-500 transition-colors">履歴を消去</button>
-            </div>
-            <div id="historyList" class="space-y-3 pb-10">
-                </div>
-        </section>
+        <h3 class="font-bold text-slate-800 flex items-center px-1">
+            <i class="fa-solid fa-history mr-2 text-slate-400"></i>食事の履歴
+        </h3>
+        <div id="historyList" class="space-y-3 pb-10"></div>
     </main>
 
     <script>
-        // === 重要：ここにGoogle AI Studioで取ったAPIキーを入れる ===
+        // === ここにひろさんのAPIキーを入れてください ===
         const API_KEY = 'AIzaSyDOYjEXuerw1zhDdAJiTjqeBs7A71Lycxo'; 
         const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
+        let currentMealType = '朝食';
         const imageInput = document.getElementById('imageInput');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const historyList = document.getElementById('historyList');
         const imagePreview = document.getElementById('imagePreview');
         const uploadPlaceholder = document.getElementById('uploadPlaceholder');
 
-        // データの永続化（LocalStorage）
-        let history = JSON.parse(localStorage.getItem('mealHistory_hiro') || '[]');
+        let history = JSON.parse(localStorage.getItem('mealHistory_hiro_v2') || '[]');
         updateHistoryUI();
 
-        // 画像プレビュー処理
+        function selectMeal(type, btn) {
+            currentMealType = type;
+            document.querySelectorAll('.meal-btn').forEach(b => {
+                b.classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-200');
+                b.classList.add('bg-white', 'text-slate-500', 'border-slate-100');
+            });
+            btn.classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
+            btn.classList.remove('bg-white', 'text-slate-500', 'border-slate-100');
+        }
+
         imageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -94,55 +103,38 @@
             }
         });
 
-        // 解析実行
         analyzeBtn.onclick = async () => {
             const file = imageInput.files[0];
-            if (!file) {
-                alert('ひろさん、まずは写真を撮るか選んでくださいね！');
-                return;
-            }
-
+            if (!file) { alert('写真を選んでくださいね！'); return; }
             setLoading(true);
 
             try {
                 const base64Data = await toBase64(file);
                 const pureBase64 = base64Data.split(',')[1];
-
-                // AIへの指示（プロンプト）
                 const prompt = `あなたはひろさんの専属管理栄養士です。
-1. この写真の食事を100点満点で採点してください。
-2. 推定される摂取カロリーと主要な栄養素（タンパク質・脂質・炭水化物）を教えてください。
-3. 今の食事を踏まえ、ひろさんが「次に何を食べるべきか」を100文字程度で優しくアドバイスしてください。
-回答は簡潔に、見やすく箇条書きを交えてください。`;
+1. これは「${currentMealType}」の写真です。100点満点で採点してください。
+2. 推定カロリーとPFCバランスを教えてください。
+3. ${currentMealType}であることを踏まえ、ひろさんが「次に何を食べるべきか」具体的にアドバイスしてください。`;
 
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                { text: prompt },
-                                { inline_data: { mime_type: file.type, data: pureBase64 } }
-                            ]
-                        }]
+                        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: file.type, data: pureBase64 } }] }]
                     })
                 });
 
                 const data = await response.json();
-                if (data.error) throw new Error(data.error.message);
-
                 const aiText = data.candidates[0].content.parts[0].text;
 
-                // 結果表示
+                document.getElementById('resultLabel').innerText = currentMealType;
                 document.getElementById('aiResponse').innerText = aiText;
                 document.getElementById('resultSection').classList.remove('hidden');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
 
-                // 保存
-                saveToHistory(aiText, base64Data);
-
+                saveToHistory(aiText, base64Data, currentMealType);
             } catch (error) {
-                alert('エラーが発生しました。APIキーが正しいか確認してください。\n内容: ' + error.message);
+                alert('エラーが発生しました。キーを確認してください。');
             } finally {
                 setLoading(false);
             }
@@ -151,7 +143,6 @@
         function setLoading(isLoading) {
             document.getElementById('loader').classList.toggle('hidden', !isLoading);
             analyzeBtn.disabled = isLoading;
-            if (isLoading) document.getElementById('resultSection').classList.add('hidden');
         }
 
         function toBase64(file) {
@@ -163,17 +154,14 @@
             });
         }
 
-        function saveToHistory(text, img) {
+        function saveToHistory(text, img, type) {
             const entry = { 
-                id: Date.now(), 
                 date: new Date().toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }), 
-                text: text,
-                img: img 
+                text: text, img: img, type: type 
             };
             history.unshift(entry);
-            // 保存（ブラウザの容量制限に配慮して最新20件程度にするのが安全）
-            if (history.length > 20) history.pop();
-            localStorage.setItem('mealHistory_hiro', JSON.stringify(history));
+            if (history.length > 30) history.pop();
+            localStorage.setItem('mealHistory_hiro_v2', JSON.stringify(history));
             updateHistoryUI();
         }
 
@@ -184,26 +172,19 @@
             }
             historyList.innerHTML = history.map(item => `
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4">
-                    <img src="${item.img}" class="w-20 h-20 object-cover rounded-xl shadow-inner bg-slate-100 flex-shrink-0">
+                    <div class="relative flex-shrink-0">
+                        <img src="${item.img}" class="w-20 h-20 object-cover rounded-xl shadow-inner">
+                        <span class="absolute -top-2 -left-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-lg shadow-sm">${item.type}</span>
+                    </div>
                     <div class="flex-1 min-w-0">
-                        <div class="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">${item.date}</div>
+                        <div class="text-[10px] font-bold text-slate-400 mb-1 tracking-wider">${item.date}</div>
                         <div class="text-xs text-slate-600 line-clamp-3 leading-relaxed">${item.text}</div>
                     </div>
                 </div>
             `).join('');
         }
 
-        function closeResult() {
-            document.getElementById('resultSection').classList.add('hidden');
-        }
-
-        function clearHistory() {
-            if (confirm('全ての履歴を削除してよろしいですか？')) {
-                history = [];
-                localStorage.removeItem('mealHistory_hiro');
-                updateHistoryUI();
-            }
-        }
+        function closeResult() { document.getElementById('resultSection').classList.add('hidden'); }
     </script>
 </body>
 </html>
