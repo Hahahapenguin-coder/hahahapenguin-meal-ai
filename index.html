@@ -2,189 +2,101 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meal Score AI - ひろさん専用</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ひろさんの食事管理AI</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f0f8ff; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        img { max-width: 100%; border-radius: 10px; margin-top: 10px; display: none; }
+        #result { text-align: left; margin-top: 20px; white-space: pre-wrap; font-size: 14px; }
+        button { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .settings { margin-top: 30px; font-size: 12px; color: #888; border-top: 1px solid #ddd; padding-top: 10px; }
+        input { padding: 8px; width: 80%; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans pb-20">
+<body>
 
-    <nav class="bg-white border-b sticky top-0 z-10 px-4 py-3 shadow-sm">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-blue-600 flex items-center tracking-tight">
-                <i class="fa-solid fa-utensils mr-2"></i>ひろさんの食事管理
-            </h1>
-        </div>
-    </nav>
+<div class="card">
+    <h2>🍴 ひろさんの食事解析</h2>
+    <input type="file" id="imageInput" accept="image/*" style="display:none;">
+    <button onclick="document.getElementById('imageInput').click()">📷 写真を撮る・選ぶ</button>
+    <img id="preview">
+    <div id="result"></div>
+</div>
 
-    <main class="max-w-md mx-auto p-4 space-y-6">
-        <section class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-            <h2 class="text-lg font-bold mb-4 flex items-center text-slate-700">
-                <i class="fa-solid fa-clock mr-2 text-blue-500"></i>いつの食事ですか？
-            </h2>
+<div class="settings">
+    <p>⚙️ 設定: APIキーを入力してください（初回のみ）</p>
+    <input type="password" id="apiKeyInput" placeholder="AIza...">
+    <button onclick="saveKey()" style="padding: 5px 10px; font-size: 12px; background: #6c757d;">キーを保存</button>
+</div>
+
+<script>
+    // スマホの保存領域からキーを読み込む
+    let apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
+    if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
+
+    function saveKey() {
+        const key = document.getElementById('apiKeyInput').value;
+        localStorage.setItem('GEMINI_API_KEY', key);
+        alert('キーをスマホに保存しました！');
+        location.reload();
+    }
+
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const resultDiv = document.getElementById('result');
+
+    imageInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (re) => {
+            preview.src = re.target.result;
+            preview.style.display = 'block';
+            resultDiv.innerText = '解析中... ひろさん、少々お待ちを！';
             
-            <div class="flex justify-between gap-2 mb-6" id="mealTypeContainer">
-                <button onclick="selectMeal('朝食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-blue-50 text-blue-600 border-blue-200">朝食</button>
-                <button onclick="selectMeal('昼食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-white text-slate-500">昼食</button>
-                <button onclick="selectMeal('夕食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-white text-slate-500">夕食</button>
-                <button onclick="selectMeal('間食', this)" class="meal-btn flex-1 py-3 rounded-2xl border-2 border-slate-100 text-sm font-bold transition-all bg-white text-slate-500">他</button>
-            </div>
+            const base64Image = re.target.result.split(',')[1];
+            await analyzeImage(base64Image);
+        };
+        reader.readAsDataURL(file);
+    });
 
-            <label class="block relative group cursor-pointer">
-                <div id="uploadPlaceholder" class="border-2 border-dashed border-slate-200 rounded-2xl py-10 flex flex-col items-center justify-center bg-slate-50 group-hover:bg-blue-50 transition-colors">
-                    <i class="fa-solid fa-camera text-3xl text-slate-300 mb-2"></i>
-                    <p class="text-sm text-slate-500 font-medium">写真を撮る・選ぶ</p>
-                </div>
-                <img id="imagePreview" class="hidden w-full h-56 object-cover rounded-2xl shadow-inner border border-slate-100">
-                <input type="file" id="imageInput" accept="image/*" class="hidden">
-            </label>
-
-            <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-[0.98] disabled:bg-slate-300">
-                AIで採点・アドバイス
-            </button>
-        </section>
-
-        <div id="loader" class="hidden text-center py-10">
-            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
-            <p class="mt-4 text-slate-600 font-medium text-sm">ひろさんの食事を分析中...</p>
-        </div>
-
-        <section id="resultSection" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div class="bg-white rounded-3xl p-6 shadow-lg border border-blue-100">
-                <div class="flex justify-between items-start mb-4">
-                    <span id="resultLabel" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase"></span>
-                    <button onclick="closeResult()" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div id="aiResponse" class="prose prose-slate text-slate-700 text-sm leading-relaxed whitespace-pre-wrap"></div>
-            </div>
-        </section>
-
-        <h3 class="font-bold text-slate-800 flex items-center px-1">
-            <i class="fa-solid fa-history mr-2 text-slate-400"></i>食事の履歴
-        </h3>
-        <div id="historyList" class="space-y-3 pb-10"></div>
-    </main>
-
-    <script>
-        // === ここにひろさんのAPIキーを入れてください ===
-        const API_KEY = 'AIzaSyDYIhq-P24tkIMsoUU_Y0OkgAlKx0SIsrQ'; 
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-
-        let currentMealType = '朝食';
-        const imageInput = document.getElementById('imageInput');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const historyList = document.getElementById('historyList');
-        const imagePreview = document.getElementById('imagePreview');
-        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-
-        let history = JSON.parse(localStorage.getItem('mealHistory_hiro_v2') || '[]');
-        updateHistoryUI();
-
-        function selectMeal(type, btn) {
-            currentMealType = type;
-            document.querySelectorAll('.meal-btn').forEach(b => {
-                b.classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-200');
-                b.classList.add('bg-white', 'text-slate-500', 'border-slate-100');
-            });
-            btn.classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
-            btn.classList.remove('bg-white', 'text-slate-500', 'border-slate-100');
+    async function analyzeImage(base64Image) {
+        const currentKey = localStorage.getItem('GEMINI_API_KEY');
+        if (!currentKey) {
+            resultDiv.innerText = '⚠️ 下の設定欄にAPIキーを入れて保存してください。';
+            return;
         }
 
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (f) => {
-                    imagePreview.src = f.target.result;
-                    imagePreview.classList.remove('hidden');
-                    uploadPlaceholder.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        analyzeBtn.onclick = async () => {
-            const file = imageInput.files[0];
-            if (!file) { alert('写真を選んでくださいね！'); return; }
-            setLoading(true);
-
-            try {
-                const base64Data = await toBase64(file);
-                const pureBase64 = base64Data.split(',')[1];
-                const prompt = `あなたはひろさんの専属管理栄養士です。
-1. これは「${currentMealType}」の写真です。100点満点で採点してください。
-2. 推定カロリーとPFCバランスを教えてください。
-3. ${currentMealType}であることを踏まえ、ひろさんが「次に何を食べるべきか」具体的にアドバイスしてください。`;
-
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: file.type, data: pureBase64 } }] }]
-                    })
-                });
-
-                const data = await response.json();
-                const aiText = data.candidates[0].content.parts[0].text;
-
-                document.getElementById('resultLabel').innerText = currentMealType;
-                document.getElementById('aiResponse').innerText = aiText;
-                document.getElementById('resultSection').classList.remove('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-
-                saveToHistory(aiText, base64Data, currentMealType);
-            } catch (error) {
-                alert('エラーが発生しました。キーを確認してください。');
-            } finally {
-                setLoading(false);
-            }
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
+        
+        const data = {
+            contents: [{
+                parts: [
+                    { text: "あなたはプロの管理栄養士です。私の名前は「ひろさん」です。この食事を解析し、ポジティブな感想、概算カロリー、健康アドバイス、100点満点の評価を親しみやすく回答してください。" },
+                    { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                ]
+            }]
         };
 
-        function setLoading(isLoading) {
-            document.getElementById('loader').classList.toggle('hidden', !isLoading);
-            analyzeBtn.disabled = isLoading;
-        }
-
-        function toBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
-        }
-
-        function saveToHistory(text, img, type) {
-            const entry = { 
-                date: new Date().toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }), 
-                text: text, img: img, type: type 
-            };
-            history.unshift(entry);
-            if (history.length > 30) history.pop();
-            localStorage.setItem('mealHistory_hiro_v2', JSON.stringify(history));
-            updateHistoryUI();
-        }
-
-        function updateHistoryUI() {
-            if (history.length === 0) {
-                historyList.innerHTML = '<p class="text-center text-slate-400 py-10 text-sm">履歴はまだありません</p>';
-                return;
+            const result = await response.json();
+            if (result.candidates) {
+                resultDiv.innerText = result.candidates[0].content.parts[0].text;
+            } else {
+                resultDiv.innerText = 'エラー: ' + JSON.stringify(result);
             }
-            historyList.innerHTML = history.map(item => `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4">
-                    <div class="relative flex-shrink-0">
-                        <img src="${item.img}" class="w-20 h-20 object-cover rounded-xl shadow-inner">
-                        <span class="absolute -top-2 -left-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-lg shadow-sm">${item.type}</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="text-[10px] font-bold text-slate-400 mb-1 tracking-wider">${item.date}</div>
-                        <div class="text-xs text-slate-600 line-clamp-3 leading-relaxed">${item.text}</div>
-                    </div>
-                </div>
-            `).join('');
+        } catch (error) {
+            resultDiv.innerText = '通信エラーが発生しました。';
         }
+    }
+</script>
 
-        function closeResult() { document.getElementById('resultSection').classList.add('hidden'); }
-    </script>
 </body>
 </html>
